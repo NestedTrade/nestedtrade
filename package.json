@@ -1,0 +1,21 @@
+{
+  "name": "birdswap",
+  "version": "1.0.0",
+  "description": "A trustless marketplace for selling/buying nested moonbirds",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "nft",
+    "proof",
+    "moonbirds"
+  ],
+  "author": "Montana Wong <montycheese@pm.me> (https://montanawong.com)",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^1.0.2",
+    "erc721a": "^4.2.2",
+    "hardhat": "^2.10.2"
+  }
+}
