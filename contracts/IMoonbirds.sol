@@ -1,4 +1,4 @@
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.10;
 
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "erc721a/contracts/IERC721A.sol";
