@@ -11,3 +11,5 @@ artifacts
 
 # IDE config files
 .idea
+
+.DS_STORE

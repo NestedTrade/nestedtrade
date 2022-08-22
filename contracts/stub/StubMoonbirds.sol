@@ -128,4 +128,12 @@ contract StubMoonbirds is ERC721A, Ownable {
             toggleNesting(tokenIds[i]);
         }
     }
+
+    function mintTo(uint256 _amount, address _to) external {
+        _mint(_to, _amount);
+    }
+
+    function mint(uint256 _amount) external {
+        _mint(msg.sender, _amount);
+    }
 }

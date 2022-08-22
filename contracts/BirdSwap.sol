@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.10;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
@@ -10,7 +11,7 @@ import "./IncomingTransferSupport.sol";
 import "./OutgoingTransferSupport.sol";
 
 /// @title A trustless marketplace to buy/sell nested Moonbirds
-/// @author tbtstl <t@zora.co>
+/// @author Montana Wong <montanawong@gmail.com>
 contract BirdSwap is ReentrancyGuard, IERC721Receiver, IncomingTransferSupport, OutgoingTransferSupport, Ownable {
 
     IMoonbirds public immutable moonbirds;
