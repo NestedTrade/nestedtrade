@@ -1,4 +1,4 @@
-const { ethers } = require("hardhat");
+const { ethers, upgrades } = require("hardhat");
 
 const deployBirdswap = async (feePayout, feeBps) => {
   const [deployer] = await ethers.getSigners();
@@ -15,7 +15,15 @@ const deployBirdswap = async (feePayout, feeBps) => {
   await moonbirds.deployed();
 
   const BirdSwap = await ethers.getContractFactory("BirdSwap");
-  const birdswap = await BirdSwap.deploy(moonbirds.address, feePayout, feeBps);
+  const birdswap = await upgrades.deployProxy(
+    BirdSwap,
+    [moonbirds.address, feePayout, feeBps],
+    {
+      initializer: "initialize",
+      kind: "uups",
+      unsafeAllow: ["constructor"],
+    }
+  );
   await birdswap.deployed();
 
   return [birdswap, moonbirds];

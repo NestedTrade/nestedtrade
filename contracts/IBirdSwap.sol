@@ -4,10 +4,12 @@ pragma solidity ^0.8.10;
 interface IBirdSwap {
     /// @notice The metadata for an ask
     /// @param seller The address of the seller placing the ask
+    /// @param buyer The address of the buyer
     /// @param sellerFundsRecipient The address to send funds after the ask is filled
     /// @param askPrice The price to fill the ask
     struct Ask {
         address seller;
+        address buyer;
         uint256 askPrice;
         uint256 royaltyFeeBps;
     }

@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.10;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721ReceiverUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+
 import "./IMoonbirds.sol";
 import "./IBirdSwap.sol";
 import "./BirdSwapStore.sol";
 
 /// @title A trustless marketplace to buy/sell nested Moonbirds
 /// @author Montana Wong <montanawong@gmail.com>
-contract BirdSwap is IBirdSwap, ReentrancyGuard, IERC721Receiver, Ownable, BirdSwapStore {
+contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IERC721ReceiverUpgradeable, OwnableUpgradeable, BirdSwapStore {
     /// @dev Allow only the seller of a specific token ID to call specific functions.
     modifier onlyTokenSeller(uint256 _tokenId) {
         require(
@@ -22,23 +22,30 @@ contract BirdSwap is IBirdSwap, ReentrancyGuard, IERC721Receiver, Ownable, BirdS
         _;
     }
 
-    constructor(
+    constructor() initializer {
+        // used to prevent logic contract self destruct take over
+    }
+
+    function initialize (
         IMoonbirds _moonbirds,
         address _marketplaceFeePayoutAddress,
         uint256 _marketplaceFeeBps
-    )
+    ) public initializer
     {
         moonbirds = _moonbirds;
         marketplaceFeePayoutAddress = _marketplaceFeePayoutAddress;
         marketplaceFeeBps = _marketplaceFeeBps;
+        enforceDefaultRoyalties = false;
     }
 
     /// @notice Creates the ask for a given NFT
     /// @param _tokenId The ID of the Moonbird token to be sold
+    /// @param _buyer Address of the buyer
     /// @param _askPrice The price to fill the ask
     /// @param _royaltyFeeBps The basis points of royalties to pay to the Moonbird's token royalty payout address
     function createAsk(
         uint256 _tokenId,
+        address _buyer,
         uint256 _askPrice,
         uint256 _royaltyFeeBps
     ) external onlyTokenSeller(_tokenId) nonReentrant {
@@ -57,6 +64,7 @@ contract BirdSwap is IBirdSwap, ReentrancyGuard, IERC721Receiver, Ownable, BirdS
 
         askForMoonbird[_tokenId] = Ask({
             seller: tokenOwner,
+            buyer: _buyer,
             askPrice: _askPrice,
             royaltyFeeBps: _royaltyFeeBps
         });
@@ -112,6 +120,7 @@ contract BirdSwap is IBirdSwap, ReentrancyGuard, IERC721Receiver, Ownable, BirdS
 
         require(isMoonbirdEscrowed(_tokenId), "fillAsk The Moonbird associated with this ask must be escrowed within Birdswap before a purchase can be completed");
         require(ask.seller != address(0), "fillAsk must be active ask");
+        require(ask.buyer == msg.sender, "must be buyer");
         require(ask.askPrice == _fillAmount, "fillAsk _fillAmount must match ask amount");
 
         require(msg.value >= ask.askPrice, "_handleIncomingTransfer msg value less than expected amount");
@@ -139,7 +148,7 @@ contract BirdSwap is IBirdSwap, ReentrancyGuard, IERC721Receiver, Ownable, BirdS
     /// This is because the Moonbird contract does not allow operators to transfer the NFT on the owner's behalf
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external returns (bytes4) {
         moonbirdTransferredFromOwner[tokenId] = from;
-        return IERC721Receiver.onERC721Received.selector;
+        return IERC721ReceiverUpgradeable.onERC721Received.selector;
     }
 
     /// @dev Checks to see if a moonbird is escrowed within the Birdswap contract
@@ -170,13 +179,7 @@ contract BirdSwap is IBirdSwap, ReentrancyGuard, IERC721Receiver, Ownable, BirdS
     function release() external onlyOwner {
         uint256 balance = address(this).balance;
 
-        Address.sendValue(payable(owner()), balance);
-    }
-
-    /// @dev Provide a way to withdraw any tokens that may have been accidentally sent to this contract
-    function withdrawTokens(IERC20 token) public onlyOwner {
-        uint256 balance = token.balanceOf(address(this));
-        token.transfer(owner(), balance);
+        payable(msg.sender).transfer(balance);
     }
 
     /// @dev Deletes canceled and invalid asks
@@ -240,5 +243,12 @@ contract BirdSwap is IBirdSwap, ReentrancyGuard, IERC721Receiver, Ownable, BirdS
         uint256 gas = (_gasLimit == 0 || _gasLimit > gasleft()) ? gasleft() : _gasLimit;
         (bool success, ) = _dest.call{value: _amount, gas: gas}("");
         require(success, "transfer failed");
+    }
+
+    function _authorizeUpgrade(address) internal view override {
+        require(
+            _msgSender() == owner(),
+            "INVALID_ADMIN"
+        );
     }
 }
