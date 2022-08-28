@@ -21,6 +21,7 @@
     "hardhat": "^2.10.2"
   },
   "dependencies": {
+    "@divergencetech/ethier": "^0.29.0",
     "@openzeppelin/contracts": "^4.7.3",
     "dotenv": "^16.0.1"
   }
