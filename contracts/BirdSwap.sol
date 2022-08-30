@@ -1,69 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.10;
+pragma solidity 0.8.10;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721ReceiverUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+
 import "./IMoonbirds.sol";
-import "./IncomingTransferSupport.sol";
-import "./OutgoingTransferSupport.sol";
+import "./IBirdSwap.sol";
+import "./BirdSwapStore.sol";
 
 /// @title A trustless marketplace to buy/sell nested Moonbirds
 /// @author Montana Wong <montanawong@gmail.com>
-contract BirdSwap is ReentrancyGuard, IERC721Receiver, IncomingTransferSupport, OutgoingTransferSupport, Ownable {
-
-    IMoonbirds public immutable moonbirds;
-    /// @notice The ask for a given NFT, if one exists
-    /// @dev Moonbird token ID => Ask
-    mapping(uint256 => Ask) public askForMoonbird;
-    /// mapping of moonbird token id to the address that transferred it to the escrow from
-    mapping(uint256 => address) public moonbirdTransferredFromOwner;
-
-    bool public enforceDefaultRoyalties = false;
-    uint256 public marketplaceFeeBps;
-    address private marketplaceFeePayoutAddress;
-
-    /// @notice The metadata for an ask
-    /// @param seller The address of the seller placing the ask
-    /// @param sellerFundsRecipient The address to send funds after the ask is filled
-    /// @param askCurrency The address of the ERC-20, or address(0) for ETH, required to fill the ask
-    /// @param askPrice The price to fill the ask
-    struct Ask {
-        address seller;
-        address sellerFundsRecipient;
-        address askCurrency;
-        uint256 askPrice;
-        uint256 royaltyFeeBps;
-    }
-
-    /// @notice Emitted when an ask is created
-    /// @param tokenId The ERC-721 token ID of the created ask
-    /// @param ask The metadata of the created ask
-    event AskCreated(uint256 indexed tokenId, Ask ask);
-
-    /// @notice Emitted when an ask price is updated
-    /// @param tokenId The ERC-721 token ID of the updated ask
-    /// @param ask The metadata of the updated ask
-    event AskPriceUpdated(uint256 indexed tokenId, Ask ask);
-
-    /// @notice Emitted when an ask is canceled
-    /// @param tokenId The ERC-721 token ID of the canceled ask
-    /// @param ask The metadata of the canceled ask
-    event AskCanceled(uint256 indexed tokenId, Ask ask);
-
-    /// @notice Emitted when an ask is filled
-    /// @param tokenId The ERC-721 token ID of the filled ask
-    /// @param buyer The buyer address of the filled ask
-    /// @param ask The metadata of the filled ask
-    event AskFilled(uint256 indexed tokenId, address indexed buyer, Ask ask);
-
-    /// @notice Emitted when an bird is withdrawn without a sale by the original owner
-    /// @param tokenId The ERC-721 token ID of the filled ask
-    /// @param to The address the bird was withdrawn to
-    event BirdWithdrawn(uint256 indexed tokenId, address to);
-
+contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IERC721ReceiverUpgradeable, OwnableUpgradeable, BirdSwapStore {
     /// @dev Allow only the seller of a specific token ID to call specific functions.
     modifier onlyTokenSeller(uint256 _tokenId) {
         require(
@@ -73,31 +22,32 @@ contract BirdSwap is ReentrancyGuard, IERC721Receiver, IncomingTransferSupport, 
         _;
     }
 
-    constructor(IMoonbirds _moonbirds,
+    constructor() initializer {
+        // used to prevent logic contract self destruct take over
+    }
+
+    function initialize (
+        IMoonbirds _moonbirds,
         address _marketplaceFeePayoutAddress,
-        uint256 _marketplaceFeeBps,
-        address _wethAddress
-    )
-        IncomingTransferSupport()
-        OutgoingTransferSupport(_wethAddress)
+        uint256 _marketplaceFeeBps
+    ) public initializer
     {
         moonbirds = _moonbirds;
         marketplaceFeePayoutAddress = _marketplaceFeePayoutAddress;
         marketplaceFeeBps = _marketplaceFeeBps;
+        enforceDefaultRoyalties = false;
     }
 
     /// @notice Creates the ask for a given NFT
     /// @param _tokenId The ID of the Moonbird token to be sold
+    /// @param _buyer Address of the buyer
     /// @param _askPrice The price to fill the ask
     /// @param _royaltyFeeBps The basis points of royalties to pay to the Moonbird's token royalty payout address
-    /// @param _askCurrency The address of the ERC-20 token required to fill, or address(0) for ETH
-    /// @param _sellerFundsRecipient The address to send funds once the ask is filled
     function createAsk(
         uint256 _tokenId,
+        address _buyer,
         uint256 _askPrice,
-        uint256 _royaltyFeeBps,
-        address _askCurrency,
-        address _sellerFundsRecipient
+        uint256 _royaltyFeeBps
     ) external onlyTokenSeller(_tokenId) nonReentrant {
         address tokenOwner = moonbirds.ownerOf(_tokenId);
         // If the Moonbird is already escrowed in BirdSwap, the ownerOf will return this contract's address.
@@ -106,7 +56,6 @@ contract BirdSwap is ReentrancyGuard, IERC721Receiver, IncomingTransferSupport, 
         }
 
         require(_royaltyFeeBps <= 10000, "createAsk royalty fee basis points must be less than or equal to 10000");
-        require(_sellerFundsRecipient != address(0), "createAsk must specify _sellerFundsRecipient");
 
         // prevent multiple asks from being created for the same token ID
         if (askForMoonbird[_tokenId].seller != address(0)) {
@@ -115,8 +64,7 @@ contract BirdSwap is ReentrancyGuard, IERC721Receiver, IncomingTransferSupport, 
 
         askForMoonbird[_tokenId] = Ask({
             seller: tokenOwner,
-            sellerFundsRecipient: _sellerFundsRecipient,
-            askCurrency: _askCurrency,
+            buyer: _buyer,
             askPrice: _askPrice,
             royaltyFeeBps: _royaltyFeeBps
         });
@@ -142,18 +90,15 @@ contract BirdSwap is ReentrancyGuard, IERC721Receiver, IncomingTransferSupport, 
     /// @notice Updates the ask price for a given Moonbird
     /// @param _tokenId The ID of the Moonbird token
     /// @param _askPrice The ask price to set
-    /// @param _askCurrency The address of the ERC-20 token required to fill, or address(0) for ETH
     function setAskPrice(
         uint256 _tokenId,
-        uint256 _askPrice,
-        address _askCurrency
+        uint256 _askPrice
     ) external nonReentrant {
         Ask storage ask = askForMoonbird[_tokenId];
 
         require(ask.seller == msg.sender || (isMoonbirdEscrowed(_tokenId) && moonbirdTransferredFromOwner[_tokenId] == msg.sender), "setAskPrice must be seller");
 
         ask.askPrice = _askPrice;
-        ask.askCurrency = _askCurrency;
 
         emit AskPriceUpdated(_tokenId, ask);
     }
@@ -166,31 +111,28 @@ contract BirdSwap is ReentrancyGuard, IERC721Receiver, IncomingTransferSupport, 
 
     /// @notice Fills the ask for a given Moonbird, transferring the ETH/ERC-20 to the seller and Moonbird to the buyer
     /// @param _tokenId The ID of the Moonbird token
-    /// @param _fillCurrency The address of the ERC-20 token using to fill, or address(0) for ETH
     /// @param _fillAmount The amount to fill the ask
     function fillAsk(
         uint256 _tokenId,
-        address _fillCurrency,
         uint256 _fillAmount
     ) external payable nonReentrant {
         Ask storage ask = askForMoonbird[_tokenId];
 
         require(isMoonbirdEscrowed(_tokenId), "fillAsk The Moonbird associated with this ask must be escrowed within Birdswap before a purchase can be completed");
         require(ask.seller != address(0), "fillAsk must be active ask");
-        require(ask.askCurrency == _fillCurrency, "fillAsk _fillCurrency must match ask currency");
+        require(ask.buyer == msg.sender, "must be buyer");
         require(ask.askPrice == _fillAmount, "fillAsk _fillAmount must match ask amount");
 
-        // Ensure ETH/ERC-20 payment from buyer is valid and take custody
-        _handleIncomingTransfer(ask.askPrice, ask.askCurrency);
+        require(msg.value >= ask.askPrice, "_handleIncomingTransfer msg value less than expected amount");
 
         // Payout marketplace fee
-        uint256 remainingProfit = _handleMarketplaceFeePayout(ask.askPrice, ask.askCurrency);
+        uint256 remainingProfit = _handleMarketplaceFeePayout(ask.askPrice);
 
         // Payout respective parties, payout royalties based on configuration
-        remainingProfit = _handleRoyaltyPayout(remainingProfit, ask.askCurrency, ask.royaltyFeeBps, 0);
+        remainingProfit = _handleRoyaltyPayout(remainingProfit, ask.royaltyFeeBps, 0);
 
         // Transfer remaining ETH/ERC-20 to seller
-        _handleOutgoingTransfer(ask.sellerFundsRecipient, remainingProfit, ask.askCurrency, 0);
+        _handleOutgoingTransfer(ask.seller, remainingProfit, 0);
 
         // Transfer nested moonbird to buyer
         moonbirds.safeTransferWhileNesting(address(this), msg.sender, _tokenId);
@@ -206,7 +148,7 @@ contract BirdSwap is ReentrancyGuard, IERC721Receiver, IncomingTransferSupport, 
     /// This is because the Moonbird contract does not allow operators to transfer the NFT on the owner's behalf
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external returns (bytes4) {
         moonbirdTransferredFromOwner[tokenId] = from;
-        return IERC721Receiver.onERC721Received.selector;
+        return IERC721ReceiverUpgradeable.onERC721Received.selector;
     }
 
     /// @dev Checks to see if a moonbird is escrowed within the Birdswap contract
@@ -237,13 +179,7 @@ contract BirdSwap is ReentrancyGuard, IERC721Receiver, IncomingTransferSupport, 
     function release() external onlyOwner {
         uint256 balance = address(this).balance;
 
-        Address.sendValue(payable(owner()), balance);
-    }
-
-    /// @dev Provide a way to withdraw any tokens that may have been accidentally sent to this contract
-    function withdrawTokens(IERC20 token) public onlyOwner {
-        uint256 balance = token.balanceOf(address(this));
-        token.transfer(owner(), balance);
+        payable(msg.sender).transfer(balance);
     }
 
     /// @dev Deletes canceled and invalid asks
@@ -261,16 +197,16 @@ contract BirdSwap is ReentrancyGuard, IERC721Receiver, IncomingTransferSupport, 
         delete moonbirdTransferredFromOwner[_tokenId];
     }
 
-    function _handleMarketplaceFeePayout(uint256 _amount, address _payoutCurrency) private returns (uint256) {
+    function _handleMarketplaceFeePayout(uint256 _amount) private returns (uint256) {
         // Get marketplace fee
         uint256 marketplaceFee = _getFeeAmount(_amount, marketplaceFeeBps);
         // payout marketplace fee
-        _handleOutgoingTransfer(marketplaceFeePayoutAddress, marketplaceFee, _payoutCurrency, 50000);
+        _handleOutgoingTransfer(marketplaceFeePayoutAddress, marketplaceFee, 50000);
 
         return _amount - marketplaceFee;
     }
 
-    function _handleRoyaltyPayout(uint256 _amount, address _payoutCurrency, uint256 _royaltyFeeBps, uint256 _tokenId) private returns (uint256) {
+    function _handleRoyaltyPayout(uint256 _amount, uint256 _royaltyFeeBps, uint256 _tokenId) private returns (uint256) {
         // If no fee, return initial amount
         if (_royaltyFeeBps == 0 && !enforceDefaultRoyalties) return _amount;
 
@@ -283,12 +219,36 @@ contract BirdSwap is ReentrancyGuard, IERC721Receiver, IncomingTransferSupport, 
         }
 
         // payout royalties
-        _handleOutgoingTransfer(moonbirdsRoyaltyPayoutAddress, royaltyFee, _payoutCurrency, 50000);
+        _handleOutgoingTransfer(moonbirdsRoyaltyPayoutAddress, royaltyFee, 50000);
 
         return _amount - royaltyFee;
     }
 
     function _getFeeAmount(uint256 _amount, uint256 feeBps) private pure returns (uint256) {
         return (_amount * feeBps) / 10000;
+    }
+
+    function _handleOutgoingTransfer(
+        address _dest,
+        uint256 _amount,
+        uint256 _gasLimit
+    ) internal {
+        if (_amount == 0 || _dest == address(0)) {
+            return;
+        }
+
+        require(address(this).balance >= _amount, "_handleOutgoingTransfer insolvent");
+
+        // If no gas limit was provided or provided gas limit greater than gas left, just use the remaining gas.
+        uint256 gas = (_gasLimit == 0 || _gasLimit > gasleft()) ? gasleft() : _gasLimit;
+        (bool success, ) = _dest.call{value: _amount, gas: gas}("");
+        require(success, "transfer failed");
+    }
+
+    function _authorizeUpgrade(address) internal view override {
+        require(
+            _msgSender() == owner(),
+            "INVALID_ADMIN"
+        );
     }
 }

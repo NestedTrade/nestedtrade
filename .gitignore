@@ -11,5 +11,6 @@ artifacts
 
 # IDE config files
 .idea
+.openzeppelin
 
 .DS_STORE
