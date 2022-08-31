@@ -166,6 +166,11 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         marketplaceFeePayoutAddress = _marketplaceFeePayoutAddress;
     }
 
+    /// Set the enforce default royalties flag
+    function setEnforceDefaultRoyalties(bool _enforceDefaultRoyalties) external onlyOwner {
+        enforceDefaultRoyalties = _enforceDefaultRoyalties;
+    }
+
     /// @notice Returns whether or not a particular ask is fufillable.
     /// Since Moonbird NFTs do not allow operators to transfer them between users while nested,
     /// Birdswap requires the NFT to be transferred to this contract by the user before an ask is fufillable
