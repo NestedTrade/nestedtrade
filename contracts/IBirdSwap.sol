@@ -12,6 +12,7 @@ interface IBirdSwap {
         address buyer;
         uint256 askPrice;
         uint256 royaltyFeeBps;
+        bytes32 uid;
     }
 
 

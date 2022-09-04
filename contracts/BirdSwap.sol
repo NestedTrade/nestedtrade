@@ -66,7 +66,8 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
             seller: tokenOwner,
             buyer: _buyer,
             askPrice: _askPrice,
-            royaltyFeeBps: _royaltyFeeBps
+            royaltyFeeBps: _royaltyFeeBps,
+            uid: keccak256(abi.encode(tokenOwner, _buyer, _tokenId, block.timestamp))
         });
 
         emit AskCreated(_tokenId, askForMoonbird[_tokenId]);
@@ -103,11 +104,12 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         emit AskPriceUpdated(_tokenId, ask);
     }
 
-    /// @notice Withdraws an Escrowed bird for a seller
-    /// @dev note: cancelAsk is preferred for allowing a seller to withdrawing their bird
-    function withdrawBird(uint256 _tokenId) external onlyTokenSeller(_tokenId) nonReentrant {
-        _withdrawBird(_tokenId);
-    }
+    // /// @notice Withdraws an Escrowed bird for a seller
+
+    // /// @dev note: cancelAsk is preferred for allowing a seller to withdrawing their bird
+    // function withdrawBird(uint256 _tokenId) external onlyTokenSeller(_tokenId) nonReentrant {
+    //     _withdrawBird(_tokenId);
+    // }
 
     /// @notice Fills the ask for a given Moonbird, transferring the ETH/ERC-20 to the seller and Moonbird to the buyer
     /// @param _tokenId The ID of the Moonbird token
