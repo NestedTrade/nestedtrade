@@ -29,10 +29,11 @@ describe("Birdswap.createAsk", () => {
       const tokenId = 0;
       await birdswap
         .connect(minterA)
-        .createAsk(tokenId, askPrice, royaltyBps);
+        .createAsk(tokenId, buyer.address, askPrice, royaltyBps);
 
       const ask = await birdswap.askForMoonbird(tokenId);
       expect(ask.seller).to.equal(minterA.address);
+      expect(ask.buyer).to.equal(buyer.address);
       expect(ask.askPrice).to.equal(askPrice);
       expect(ask.royaltyFeeBps).to.equal(royaltyBps);
     });

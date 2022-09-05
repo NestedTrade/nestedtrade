@@ -313,7 +313,6 @@ contract Moonbirds is
     */
     function toggleNesting(uint256 tokenId)
         internal
-        onlyApprovedOrOwner(tokenId)
     {
         uint256 start = nestingStarted[tokenId];
         if (start == 0) {
