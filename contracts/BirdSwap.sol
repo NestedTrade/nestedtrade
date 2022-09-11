@@ -49,20 +49,16 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         uint256 _askPrice,
         uint256 _royaltyFeeBps
     ) external onlyTokenSeller(_tokenId) nonReentrant {
+        require(_royaltyFeeBps <= 1000, "createAsk royalty fee basis points must be less than or equal to 10%");
+
         address tokenOwner = moonbirds.ownerOf(_tokenId);
         // If the Moonbird is already escrowed in BirdSwap, the ownerOf will return this contract's address.
         if (tokenOwner == address(this)) {
             tokenOwner = moonbirdTransferredFromOwner[_tokenId];
         }
 
-        require(_royaltyFeeBps <= 10000, "createAsk royalty fee basis points must be less than or equal to 10000");
 
-        // prevent multiple asks from being created for the same token ID
-        if (askForMoonbird[_tokenId].seller != address(0)) {
-            _cancelAsk(_tokenId);
-        }
-
-        askForMoonbird[_tokenId] = Ask({
+        Ask memory ask = Ask({
             seller: tokenOwner,
             buyer: _buyer,
             askPrice: _askPrice,
@@ -70,21 +66,26 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
             uid: keccak256(abi.encode(tokenOwner, _buyer, _tokenId, block.timestamp))
         });
 
-        emit AskCreated(_tokenId, askForMoonbird[_tokenId]);
+        askForMoonbird[_tokenId] = ask;
+
+        emit AskCreated(
+            _tokenId, ask.seller, ask.buyer, ask.askPrice, ask.royaltyFeeBps, ask.uid
+        );
     }
 
 
     /// @notice Cancels the ask for a given NFT
     /// @param _tokenId The ID of the Moonbird token
-    /// @param _shouldWithdrawBird boolean flag of whether or not to also withdraw the bird from escrow along with canceling the ask
-    function cancelAsk(uint256 _tokenId, bool _shouldWithdrawBird) external onlyTokenSeller(_tokenId) nonReentrant {
-        require(askForMoonbird[_tokenId].seller != address(0), "cancelAsk ask doesn't exist");
+    function cancelAsk(uint256 _tokenId) external onlyTokenSeller(_tokenId) nonReentrant {
+        Ask memory ask = askForMoonbird[_tokenId];
+        require(ask.seller == msg.sender, "cancelAsk wrong seller");
 
-        _cancelAsk(_tokenId);
-
-        if (_shouldWithdrawBird && isMoonbirdEscrowed(_tokenId)) {
+        if (isMoonbirdEscrowed(_tokenId)) {
             _withdrawBird(_tokenId);
         }
+
+        emit AskCanceled(_tokenId, ask.seller, ask.buyer, ask.askPrice, ask.royaltyFeeBps, ask.uid);
+        delete askForMoonbird[_tokenId];
     }
 
 
@@ -101,31 +102,29 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
 
         ask.askPrice = _askPrice;
 
-        emit AskPriceUpdated(_tokenId, ask);
+        emit AskPriceUpdated(_tokenId, ask.seller, ask.buyer, ask.askPrice, ask.royaltyFeeBps, ask.uid);
     }
 
-    // /// @notice Withdraws an Escrowed bird for a seller
-
-    // /// @dev note: cancelAsk is preferred for allowing a seller to withdrawing their bird
-    // function withdrawBird(uint256 _tokenId) external onlyTokenSeller(_tokenId) nonReentrant {
-    //     _withdrawBird(_tokenId);
-    // }
+    /// @notice Withdraws an Escrowed bird for a seller
+    /// @dev note: cancelAsk is preferred for allowing a seller to withdrawing their bird
+    // @param _tokenId the ID of the Moonbird token
+    function withdrawBird(uint256 _tokenId) external onlyTokenSeller(_tokenId) nonReentrant {
+        require(isMoonbirdEscrowed(_tokenId), "Bird not escrowed");
+        _withdrawBird(_tokenId);
+    }
 
     /// @notice Fills the ask for a given Moonbird, transferring the ETH/ERC-20 to the seller and Moonbird to the buyer
     /// @param _tokenId The ID of the Moonbird token
-    /// @param _fillAmount The amount to fill the ask
     function fillAsk(
-        uint256 _tokenId,
-        uint256 _fillAmount
+        uint256 _tokenId
     ) external payable nonReentrant {
         Ask storage ask = askForMoonbird[_tokenId];
 
         require(isMoonbirdEscrowed(_tokenId), "fillAsk The Moonbird associated with this ask must be escrowed within Birdswap before a purchase can be completed");
         require(ask.seller != address(0), "fillAsk must be active ask");
         require(ask.buyer == msg.sender, "must be buyer");
-        require(ask.askPrice == _fillAmount, "fillAsk _fillAmount must match ask amount");
 
-        require(msg.value >= ask.askPrice, "_handleIncomingTransfer msg value less than expected amount");
+        require(msg.value == ask.askPrice, "_handleIncomingTransfer msg value less than expected amount");
 
         // Payout marketplace fee
         uint256 remainingProfit = _handleMarketplaceFeePayout(ask.askPrice);
@@ -140,7 +139,7 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         moonbirds.safeTransferWhileNesting(address(this), msg.sender, _tokenId);
         delete moonbirdTransferredFromOwner[_tokenId];
 
-        emit AskFilled(_tokenId, msg.sender, ask);
+        emit AskFilled(_tokenId, ask.seller, msg.sender, ask.askPrice, ask.royaltyFeeBps, ask.uid);
 
         delete askForMoonbird[_tokenId];
     }
@@ -148,7 +147,7 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
 
     /// @dev The Moonbird must be transferred directly to this contract using safeTransferFromWhileNested by the owner
     /// This is because the Moonbird contract does not allow operators to transfer the NFT on the owner's behalf
-    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external returns (bytes4) {
+    function onERC721Received(address, address from, uint256 tokenId, bytes calldata) override public returns (bytes4) {
         moonbirdTransferredFromOwner[tokenId] = from;
         return IERC721ReceiverUpgradeable.onERC721Received.selector;
     }
@@ -173,28 +172,20 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         enforceDefaultRoyalties = _enforceDefaultRoyalties;
     }
 
-    /// @notice Returns whether or not a particular ask is fufillable.
-    /// Since Moonbird NFTs do not allow operators to transfer them between users while nested,
-    /// Birdswap requires the NFT to be transferred to this contract by the user before an ask is fufillable
-    /// @param _tokenId The ID of the Moonbird
-    function isAskFufillable(uint256 _tokenId) external view returns (bool) {
-        Ask storage ask = askForMoonbird[_tokenId];
-        return ask.seller != address(0) && isMoonbirdEscrowed(_tokenId);
-    }
+    // /// @notice Returns whether or not a particular ask is fufillable.
+    // /// Since Moonbird NFTs do not allow operators to transfer them between users while nested,
+    // /// Birdswap requires the NFT to be transferred to this contract by the user before an ask is fufillable
+    // /// @param _tokenId The ID of the Moonbird
+    // function isAskFufillable(uint256 _tokenId) external view returns (bool) {
+    //     Ask storage ask = askForMoonbird[_tokenId];
+    //     return ask.seller != address(0) && isMoonbirdEscrowed(_tokenId);
+    // }
 
     /// @dev Provide a way to withdraw any ether that may have been accidentally sent to this contract
     function release() external onlyOwner {
         uint256 balance = address(this).balance;
 
         payable(msg.sender).transfer(balance);
-    }
-
-    /// @dev Deletes canceled and invalid asks
-    /// @param _tokenId The ID of the ERC-721 token
-    function _cancelAsk(uint256 _tokenId) private {
-        emit AskCanceled(_tokenId, askForMoonbird[_tokenId]);
-
-        delete askForMoonbird[_tokenId];
     }
 
     function _withdrawBird(uint256 _tokenId) private {
