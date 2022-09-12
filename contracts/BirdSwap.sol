@@ -95,10 +95,10 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
     function setAskPrice(
         uint256 _tokenId,
         uint256 _askPrice
-    ) external nonReentrant {
+    ) external onlyTokenSeller(_tokenId) nonReentrant {
         Ask storage ask = askForMoonbird[_tokenId];
-
-        require(ask.seller == msg.sender || (isMoonbirdEscrowed(_tokenId) && moonbirdTransferredFromOwner[_tokenId] == msg.sender), "setAskPrice must be seller");
+        require(ask.seller == msg.sender, "setAskPrice must be seller");
+        require(_askPrice < ask.askPrice, "setAskPrice can only be used to lower the price");
 
         ask.askPrice = _askPrice;
 
