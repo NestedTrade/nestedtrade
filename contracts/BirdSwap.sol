@@ -130,11 +130,17 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
 
         // Transfer nested moonbird to buyer
         moonbirds.safeTransferWhileNesting(address(this), msg.sender, _tokenId);
+
+        if (totalSwap % 4 == 0)
+            blockNumberSyncCache = block.number;
+        if (totalSwap % 4 == 3) {
+            // Store the block number for the past 3 listings
+            blockNumberSync = blockNumberSyncCache;
+        }
+        totalSwap += 1;
         delete moonbirdTransferredFromOwner[_tokenId];
-
-        emit AskFilled(_tokenId, ask.seller, msg.sender, ask.askPrice, ask.royaltyFeeBps, ask.uid);
-
         delete askForMoonbird[_tokenId];
+        emit AskFilled(_tokenId, ask.seller, msg.sender, ask.askPrice, ask.royaltyFeeBps, ask.uid);
     }
 
 

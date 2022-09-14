@@ -37,7 +37,6 @@ describe("BirdSwap", () => {
 
   describe("BirdSwap.fillAsk (Success)", async () => {
     it("fill the ask", async () => {
-
       const initialBalance = await birdswap.provider.getBalance(minterA.address);
 
       await birdswap.connect(buyer).fillAsk(tokenId, {value: askPrice});
@@ -46,6 +45,7 @@ describe("BirdSwap", () => {
       expect(await birdswap.moonbirdTransferredFromOwner(tokenId)).equals(ethers.constants.AddressZero);
       // Check ETH Balance
       expect(await birdswap.provider.getBalance(minterA.address)).equals(ethers.utils.parseEther("9.8").add(initialBalance))
+      expect(await birdswap.totalSwap()).equals(1);
     });
 
   })

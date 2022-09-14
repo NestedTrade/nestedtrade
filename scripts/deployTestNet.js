@@ -19,7 +19,7 @@ async function main() {
   await tx.wait();
   const tokenIdsToNest = [...Array(10).keys()];
   console.log({tokenIdsToNest})
-  tx = await moonbirds.toggleNesting([tokenIdsToNest]);
+  tx = await moonbirds.toggleNesting(tokenIdsToNest);
   await tx.wait()
 
   console.log(`Moonbirds ${tokenIdsToNest} nested`);
