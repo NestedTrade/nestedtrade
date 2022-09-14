@@ -173,15 +173,6 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         enforceDefaultRoyalties = _enforceDefaultRoyalties;
     }
 
-    // /// @notice Returns whether or not a particular ask is fufillable.
-    // /// Since Moonbird NFTs do not allow operators to transfer them between users while nested,
-    // /// Birdswap requires the NFT to be transferred to this contract by the user before an ask is fufillable
-    // /// @param _tokenId The ID of the Moonbird
-    // function isAskFufillable(uint256 _tokenId) external view returns (bool) {
-    //     Ask storage ask = askForMoonbird[_tokenId];
-    //     return ask.seller != address(0) && isMoonbirdEscrowed(_tokenId);
-    // }
-
     /// @dev Provide a way to withdraw any ether that may have been accidentally sent to this contract
     function release() external onlyOwner {
         uint256 balance = address(this).balance;
