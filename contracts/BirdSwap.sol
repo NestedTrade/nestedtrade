@@ -152,6 +152,15 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         return address(this) == moonbirds.ownerOf(tokenId);
     }
 
+    /// @dev Fetches multiple asks given their respective corresponding moonbird tokenIds
+    function getAsksForMoonbirds(uint256[] calldata tokenIds) external view returns (Ask[] memory) {
+        Ask[] memory asks = new Ask[](tokenIds.length);
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            asks[i] = askForMoonbird[tokenIds[i]];
+        }
+        return asks;
+    }
+
     /// Set the marketplace fee in basis points
     function setMarketplaceFeeBps(uint256 _marketplaceFeeBps) external onlyOwner {
         marketplaceFeeBps = _marketplaceFeeBps;
