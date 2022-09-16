@@ -15,4 +15,8 @@ contract BirdSwapStore {
     bool public enforceDefaultRoyalties;
     uint256 public marketplaceFeeBps;
     address public marketplaceFeePayoutAddress;
+
+    uint256 public totalSwap;
+    uint256 public blockNumberSync;
+    uint256 public blockNumberSyncCache;
 }

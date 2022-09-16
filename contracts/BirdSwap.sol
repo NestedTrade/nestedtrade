@@ -130,10 +130,16 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
 
         // Transfer nested moonbird to buyer
         moonbirds.safeTransferWhileNesting(address(this), msg.sender, _tokenId);
-        delete moonbirdTransferredFromOwner[_tokenId];
 
+        if (totalSwap % 4 == 0)
+            blockNumberSyncCache = block.number;
+        if (totalSwap % 4 == 3) {
+            // Store the block number for the past 3 listings
+            blockNumberSync = blockNumberSyncCache;
+        }
+        totalSwap += 1;
         emit AskFilled(_tokenId, ask.seller, msg.sender, ask.askPrice, ask.royaltyFeeBps, ask.uid);
-
+        delete moonbirdTransferredFromOwner[_tokenId];
         delete askForMoonbird[_tokenId];
     }
 
@@ -175,15 +181,6 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
     function setEnforceDefaultRoyalties(bool _enforceDefaultRoyalties) external onlyOwner {
         enforceDefaultRoyalties = _enforceDefaultRoyalties;
     }
-
-    // /// @notice Returns whether or not a particular ask is fufillable.
-    // /// Since Moonbird NFTs do not allow operators to transfer them between users while nested,
-    // /// Birdswap requires the NFT to be transferred to this contract by the user before an ask is fufillable
-    // /// @param _tokenId The ID of the Moonbird
-    // function isAskFufillable(uint256 _tokenId) external view returns (bool) {
-    //     Ask storage ask = askForMoonbird[_tokenId];
-    //     return ask.seller != address(0) && isMoonbirdEscrowed(_tokenId);
-    // }
 
     /// @dev Provide a way to withdraw any ether that may have been accidentally sent to this contract
     function release() external onlyOwner {
