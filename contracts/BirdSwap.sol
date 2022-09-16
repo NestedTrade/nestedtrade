@@ -138,9 +138,9 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
             blockNumberSync = blockNumberSyncCache;
         }
         totalSwap += 1;
+        emit AskFilled(_tokenId, ask.seller, msg.sender, ask.askPrice, ask.royaltyFeeBps, ask.uid);
         delete moonbirdTransferredFromOwner[_tokenId];
         delete askForMoonbird[_tokenId];
-        emit AskFilled(_tokenId, ask.seller, msg.sender, ask.askPrice, ask.royaltyFeeBps, ask.uid);
     }
 
 

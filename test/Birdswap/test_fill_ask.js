@@ -39,7 +39,8 @@ describe("BirdSwap", () => {
     it("fill the ask", async () => {
       const initialBalance = await birdswap.provider.getBalance(minterA.address);
 
-      await birdswap.connect(buyer).fillAsk(tokenId, {value: askPrice});
+      const ask = await birdswap.askForMoonbird(tokenId);
+      expect(await birdswap.connect(buyer).fillAsk(tokenId, {value: askPrice})).to.emit("BirdSwap", "AskFilled").withArgs(tokenId, minterA.address, buyer.address, askPrice, royaltyBps, ask.uid);
 
       expect(await moonbirds.ownerOf(tokenId)).equals(buyer.address);
       expect(await birdswap.moonbirdTransferredFromOwner(tokenId)).equals(ethers.constants.AddressZero);

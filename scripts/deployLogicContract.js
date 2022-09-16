@@ -4,7 +4,7 @@ const { deployBirdswap } = require("../test/helpers/deploy_everything.js");
 
 async function main() {
   // MoonBirds Address
-  const MOONBIRDS_ADDRESS = "0xa50de49382182856214E59F63d2e06e6Cd4Eb939";
+  const MOONBIRDS_ADDRESS = "0x45C4a45B6dC1CB0F8bD4594C4EEEB0646787B4a6";
 
   const multiSig = "0xD6d2992F744f61ADf1A6f96ECA9dF10E54e57f7a";  // to be replaced with GnosisSafe
   const feePayout = multiSig;
