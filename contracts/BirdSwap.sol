@@ -26,7 +26,7 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         // used to prevent logic contract self destruct take over
     }
 
-    function initialize (
+    function initialize(
         IMoonbirds _moonbirds,
         address _marketplaceFeePayoutAddress,
         uint256 _marketplaceFeeBps
@@ -49,15 +49,11 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         address _buyer,
         uint256 _askPrice,
         uint256 _royaltyFeeBps
-    ) external onlyTokenSeller(_tokenId) nonReentrant {
+    ) external  nonReentrant {
         require(_royaltyFeeBps <= 1000, "createAsk royalty fee basis points must be less than or equal to 10%");
-
         address tokenOwner = moonbirds.ownerOf(_tokenId);
-        // If the Moonbird is already escrowed in BirdSwap, the ownerOf will return this contract's address.
-        if (tokenOwner == address(this)) {
-            tokenOwner = moonbirdTransferredFromOwner[_tokenId];
-        }
-
+        require(msg.sender == tokenOwner, "caller must be token owner");
+        require(_buyer != address(0), "buyer address must be set");
 
         Ask memory ask = Ask({
             seller: tokenOwner,
@@ -147,6 +143,10 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
     /// @dev The Moonbird must be transferred directly to this contract using safeTransferFromWhileNested by the owner
     /// This is because the Moonbird contract does not allow operators to transfer the NFT on the owner's behalf
     function onERC721Received(address, address from, uint256 tokenId, bytes calldata) override public returns (bytes4) {
+        require(isMoonbirdEscrowed(tokenId), "Moonbirds not transferred");
+        bool nesting;
+        (nesting, ,) = moonbirds.nestingPeriod(tokenId);
+        require(nesting == true, "Moonbirds not nested");
         Ask memory ask = askForMoonbird[tokenId];
         require(ask.seller == from, "Cannot send Nested MB without active listing.");
         moonbirdTransferredFromOwner[tokenId] = from;
