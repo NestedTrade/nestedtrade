@@ -25,7 +25,7 @@ contract NestedTrade is INestedTrade, UUPSUpgradeable, ReentrancyGuardUpgradeabl
     modifier onlyTokenSeller(uint256 _tokenId) {
         require(
             msg.sender == moonbirds.ownerOf(_tokenId) || (isMoonbirdEscrowed(_tokenId) && moonbirdTransferredFromOwner[_tokenId] == msg.sender),
-            "caller must be token owner or token must have already been sent by owner to the Birdswap contract"
+            "caller must be token owner or token must have already been sent by owner to the NestedTrade contract"
         );
         _;
     }
@@ -117,7 +117,7 @@ contract NestedTrade is INestedTrade, UUPSUpgradeable, ReentrancyGuardUpgradeabl
     ) external payable nonReentrant {
         Ask storage ask = askForMoonbird[_tokenId];
 
-        require(isMoonbirdEscrowed(_tokenId), "fillAsk The Moonbird associated with this ask must be escrowed within Birdswap before a purchase can be completed");
+        require(isMoonbirdEscrowed(_tokenId), "fillAsk The Moonbird associated with this ask must be escrowed within NestedTrade before a purchase can be completed");
         require(ask.seller != address(0), "fillAsk must be active ask");
         require(ask.buyer == msg.sender, "fillAsk must be buyer");
 
@@ -162,7 +162,7 @@ contract NestedTrade is INestedTrade, UUPSUpgradeable, ReentrancyGuardUpgradeabl
         return IERC721ReceiverUpgradeable.onERC721Received.selector;
     }
 
-    /// @dev Checks to see if a moonbird is escrowed within the Birdswap contract
+    /// @dev Checks to see if a moonbird is escrowed within the NestedTrade contract
     function isMoonbirdEscrowed(uint256 tokenId) public view returns (bool) {
         return address(this) == moonbirds.ownerOf(tokenId);
     }
