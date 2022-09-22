@@ -108,7 +108,7 @@ describe("BirdSwap", () => {
       expect(tx.nesting).equals(true)
     })
 
-    it.only("should not allow sending unnested birds", async() => {
+    it("should not allow sending unnested birds", async() => {
       await moonbirds.connect(minterA).toggleNesting([tokenId]);
       const tx = await moonbirds.nestingPeriod(tokenId);
       expect(tx.nesting).equals(false);
