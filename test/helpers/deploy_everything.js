@@ -14,9 +14,9 @@ const deployBirdswap = async (feePayout, feeBps) => {
 
   await moonbirds.deployed();
 
-  const BirdSwap = await ethers.getContractFactory("BirdSwap");
+  const NestedTrade = await ethers.getContractFactory("NestedTrade");
   const birdswap = await upgrades.deployProxy(
-    BirdSwap,
+    NestedTrade,
     [moonbirds.address, feePayout, feeBps],
     {
       initializer: "initialize",

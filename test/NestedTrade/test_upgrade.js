@@ -26,10 +26,10 @@ describe("Birdswap upgrade", () => {
 
   describe("Birdswap. upgrade(success)", async () => {
     it("upgrade to new logic contract", async () => {
-      const BirdSwapV2 = await ethers.getContractFactory("BirdSwapV2");
+      const NestedTradeV2 = await ethers.getContractFactory("NestedTradeV2");
       const birdswapv2 = await upgrades.upgradeProxy(
         birdswap.address,
-        BirdSwapV2,
+        NestedTradeV2,
         { unsafeAllow: ["constructor"] }
       );
       expect(await birdswapv2.marketplaceFeePayoutAddress()).equals(feePayout)
