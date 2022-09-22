@@ -55,27 +55,29 @@ describe("BirdSwap", () => {
       const tokenId = 2;
       const royaltyBps = 100; // 1%
       const tx = await moonbirds.royaltyInfo(tokenId, askPrice);
-      const royaltyAddress = tx.moonbirdsRoyaltyPayoutAddress;
+      const royaltyAddress = tx[0];
 
       // Create Ask
       await birdswap
         .connect(minterB)
         .createAsk(tokenId, buyer.address, askPrice, royaltyBps);
       // Send MB to Contracts
-      await moonbirds.connect(minterB).safeTransferWhileNesting(minterB.address, birdswap.address, tokenId);
-      const initialBalance = await birdswap.provider.getBalance(minterB.address);
+      const transfer = await moonbirds.connect(minterB).safeTransferWhileNesting(minterB.address, birdswap.address, tokenId);
+      await transfer.wait()
       const initialBalanceRoyalties = await birdswap.provider.getBalance(royaltyAddress);
       const initialBalanceMarket = await birdswap.provider.getBalance(feePayout)
+      const initialBalance = await birdswap.provider.getBalance(minterB.address);
 
       const ask = await birdswap.askForMoonbird(tokenId);
       expect(await birdswap.connect(buyer).fillAsk(tokenId, {value: askPrice})).to.emit("BirdSwap", "AskFilled").withArgs(tokenId, minterB.address, buyer.address, askPrice, royaltyBps, ask.uid);
 
       expect(await moonbirds.ownerOf(tokenId)).equals(buyer.address);
       expect(await birdswap.moonbirdTransferredFromOwner(tokenId)).equals(ethers.constants.AddressZero);
+
       // Check ETH Balance
-      expect(await birdswap.provider.getBalance(minterB.address)).equals(ethers.utils.parseEther("9.7").add(initialBalance))
       expect(await birdswap.provider.getBalance(feePayout)).equals(ethers.utils.parseEther("0.2").add(initialBalanceMarket))
       expect(await birdswap.provider.getBalance(royaltyAddress)).equals(ethers.utils.parseEther("0.1").add(initialBalanceRoyalties))
+      expect(await birdswap.provider.getBalance(minterB.address)).equals(ethers.utils.parseEther("9.7").add(initialBalance))
       expect(await birdswap.totalSwap()).equals(1);
     });
   })
@@ -88,7 +90,7 @@ describe("BirdSwap", () => {
 
     it("Ask does not exist", async () => {
       await expect(birdswap.connect(buyer).fillAsk(10, {value: askPrice}))
-      .to.revertedWith("fillAsk must be active ask");
+      .to.reverted;
     });
 
     it("Moonbird not escrowed yet", async () => {

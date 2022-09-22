@@ -31,7 +31,13 @@ describe("Birdswap.setMarketplaceFeeBps", () => {
 
       expect(await birdswap.marketplaceFeeBps()).equals(newFeeBps)
     });
+  })
 
+  describe("Birdswap.setMarketplaceFeeBps(error)", async () => {
+    it("not admin", async () => {
+      const newFeeBps = 500;
+      await expect(birdswap.connect(minterA).setMarketplaceFeeBps(newFeeBps)).to.revertedWith("Ownable: caller is not the owner")
+    });
   })
 });
 

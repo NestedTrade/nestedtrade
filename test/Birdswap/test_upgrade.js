@@ -35,7 +35,6 @@ describe("Birdswap upgrade", () => {
       expect(await birdswapv2.marketplaceFeePayoutAddress()).equals(feePayout)
       expect(await birdswapv2.foo()).equals(1)
     });
-
   })
 });
 
