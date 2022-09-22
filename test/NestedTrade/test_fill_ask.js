@@ -97,7 +97,7 @@ describe("BirdSwap", () => {
       const tokenId = 1
       await birdswap.connect(minterA).createAsk(tokenId, buyer.address, askPrice, royaltyBps)
       await expect(birdswap.connect(buyer).fillAsk(tokenId, {value: askPrice}))
-      .to.revertedWith("fillAsk The Moonbird associated with this ask must be escrowed within Birdswap before a purchase can be completed");
+      .to.revertedWith("fillAsk The Moonbird associated with this ask must be escrowed within NestedTrade before a purchase can be completed");
     });
 
     it("invalid askPrice", async () => {
