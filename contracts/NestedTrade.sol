@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.10;
 
+/**
+ _  _  ____  ___  ____  ____  ____     ____  ____    __    ____  ____
+( \( )( ___)/ __)(_  _)( ___)(  _ \   (_  _)(  _ \  /__\  (  _ \( ___)
+ )  (  )__) \__ \  )(   )__)  )(_) )    )(   )   / /(__)\  )(_) ))__)
+(_)\_)(____)(___/ (__) (____)(____/    (__) (_)\_)(__)(__)(____/(____)
+
+**/
+
 import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721ReceiverUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
