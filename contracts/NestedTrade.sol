@@ -7,12 +7,12 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 import "./IMoonbirds.sol";
-import "./IBirdSwap.sol";
-import "./BirdSwapStore.sol";
+import "./INestedTrade.sol";
+import "./NestedTradeStore.sol";
 
 /// @title A trustless marketplace to buy/sell nested Moonbirds
 /// @author Montana Wong, Fabrice Cheng
-contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IERC721ReceiverUpgradeable, OwnableUpgradeable, BirdSwapStore {
+contract NestedTrade is INestedTrade, UUPSUpgradeable, ReentrancyGuardUpgradeable, IERC721ReceiverUpgradeable, OwnableUpgradeable, NestedTradeStore {
     /// @dev Allow only the seller of a specific token ID to call specific functions.
     modifier onlyTokenSeller(uint256 _tokenId) {
         require(

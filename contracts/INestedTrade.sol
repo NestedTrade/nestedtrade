@@ -2,7 +2,7 @@
 pragma solidity ^0.8.10;
 
 /// @author Montana Wong, Fabrice Cheng
-interface IBirdSwap {
+interface INestedTrade {
     /// @notice The metadata for an ask
     /// @param seller The address of the seller placing the ask
     /// @param buyer The address of the buyer
