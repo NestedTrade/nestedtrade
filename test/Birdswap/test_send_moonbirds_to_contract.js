@@ -73,7 +73,7 @@ describe("BirdSwap", () => {
 
   describe("failure scenarios", async () => {
     it("should not allow people to call directly the function", async () => {
-      await expect(birdswap.onERC721Received(ethers.constants.AddressZero, minterA.address, tokenId, ethers.constants.HashZero)).to.revertedWith("Moonbirds not transferred");
+      await expect(birdswap.onERC721Received(ethers.constants.AddressZero, minterA.address, tokenId, ethers.constants.HashZero)).to.revertedWith("onERC721Received Moonbirds not transferred");
     })
 
     it("should not allow sending MB without an existing ask", async() => {
@@ -83,7 +83,7 @@ describe("BirdSwap", () => {
       expect(await birdswap.isMoonbirdEscrowed(tokenId)).equals(false);
 
       // Send Nested MB
-      await expect(moonbirds.connect(minterB).safeTransferWhileNesting(minterB.address, birdswap.address, tokenId)).to.revertedWith("Cannot send Nested MB without active listing.");
+      await expect(moonbirds.connect(minterB).safeTransferWhileNesting(minterB.address, birdswap.address, tokenId)).to.revertedWith("onERC721Received Cannot send Nested MB without active listing.");
 
       expect(await birdswap.moonbirdTransferredFromOwner(tokenId)).equals(ethers.constants.AddressZero);
       expect(await birdswap.isMoonbirdEscrowed(tokenId)).equals(false);
@@ -98,7 +98,7 @@ describe("BirdSwap", () => {
       await moonbirds.connect(minterA).safeTransferWhileNesting(minterA.address, minterB.address, tokenId)
 
       // Send Nested MB
-      await expect(moonbirds.connect(minterB).safeTransferWhileNesting(minterB.address, birdswap.address, tokenId)).to.revertedWith("Cannot send Nested MB without active listing.");
+      await expect(moonbirds.connect(minterB).safeTransferWhileNesting(minterB.address, birdswap.address, tokenId)).to.revertedWith("onERC721Received Cannot send Nested MB without active listing.");
 
       expect(await birdswap.moonbirdTransferredFromOwner(tokenId)).equals(ethers.constants.AddressZero);
       expect(await birdswap.isMoonbirdEscrowed(tokenId)).equals(false);
@@ -108,12 +108,12 @@ describe("BirdSwap", () => {
       expect(tx.nesting).equals(true)
     })
 
-    it("should not allow sending unnested birds", async() => {
+    it.only("should not allow sending unnested birds", async() => {
       await moonbirds.connect(minterA).toggleNesting([tokenId]);
       const tx = await moonbirds.nestingPeriod(tokenId);
       expect(tx.nesting).equals(false);
       //Transfer MB
-      await expect(moonbirds.connect(minterA).transferFrom(minterA.address, birdswap.address, tokenId)).to.revertedWith("Moonbirds not nested");
+      await expect(moonbirds.connect(minterA).transferFrom(minterA.address, birdswap.address, tokenId)).to.revertedWith("onERC721Received Moonbirds not nested");
     })
   });
 });
