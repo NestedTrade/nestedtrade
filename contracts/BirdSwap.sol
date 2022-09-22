@@ -116,13 +116,14 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         require(msg.value == ask.askPrice, "_handleIncomingTransfer msg value less than expected amount");
 
         // Payout marketplace fee
-        uint256 remainingProfit = _handleMarketplaceFeePayout(ask.askPrice);
+        uint256 marketplaceFee = _handleMarketplaceFeePayout(ask.askPrice);
 
         // Payout respective parties, payout royalties based on configuration
-        remainingProfit = _handleRoyaltyPayout(remainingProfit, ask.royaltyFeeBps, 0);
+        uint256 royaltyFee = _handleRoyaltyPayout(ask.askPrice, ask.royaltyFeeBps, _tokenId);
 
         // Transfer remaining ETH/ERC-20 to seller
-        _handleOutgoingTransfer(ask.seller, remainingProfit, 0);
+        uint256 remainingProfit = msg.value - marketplaceFee - royaltyFee;
+        _handleOutgoingTransfer(ask.seller, remainingProfit);
 
         // Transfer nested moonbird to buyer
         moonbirds.safeTransferWhileNesting(address(this), msg.sender, _tokenId);
@@ -200,17 +201,19 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         // Get marketplace fee
         uint256 marketplaceFee = _getFeeAmount(_amount, marketplaceFeeBps);
         // payout marketplace fee
-        _handleOutgoingTransfer(marketplaceFeePayoutAddress, marketplaceFee, 50000);
+        _handleOutgoingTransfer(marketplaceFeePayoutAddress, marketplaceFee);
 
-        return _amount - marketplaceFee;
+        return marketplaceFee;
     }
 
     function _handleRoyaltyPayout(uint256 _amount, uint256 _royaltyFeeBps, uint256 _tokenId) private returns (uint256) {
         // If no fee, return initial amount
-        if (_royaltyFeeBps == 0 && !enforceDefaultRoyalties) return _amount;
+        if (_royaltyFeeBps == 0 && !enforceDefaultRoyalties) return 0;
 
         // Get Moonbirds royalty payout address
         (address moonbirdsRoyaltyPayoutAddress, uint256 royaltyFee) = moonbirds.royaltyInfo(_tokenId, _amount);
+
+        require(moonbirdsRoyaltyPayoutAddress != address(0), "Royalty address not set");
 
         if (!enforceDefaultRoyalties) {
             // Get custom royalty fee
@@ -218,9 +221,9 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         }
 
         // payout royalties
-        _handleOutgoingTransfer(moonbirdsRoyaltyPayoutAddress, royaltyFee, 50000);
+        _handleOutgoingTransfer(moonbirdsRoyaltyPayoutAddress, royaltyFee);
 
-        return _amount - royaltyFee;
+        return royaltyFee;
     }
 
     function _getFeeAmount(uint256 _amount, uint256 feeBps) private pure returns (uint256) {
@@ -229,8 +232,7 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
 
     function _handleOutgoingTransfer(
         address _dest,
-        uint256 _amount,
-        uint256 _gasLimit
+        uint256 _amount
     ) internal {
         if (_amount == 0 || _dest == address(0)) {
             return;
@@ -238,9 +240,7 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
 
         require(address(this).balance >= _amount, "_handleOutgoingTransfer insolvent");
 
-        // If no gas limit was provided or provided gas limit greater than gas left, just use the remaining gas.
-        uint256 gas = (_gasLimit == 0 || _gasLimit > gasleft()) ? gasleft() : _gasLimit;
-        (bool success, ) = _dest.call{value: _amount, gas: gas}("");
+        (bool success, ) = _dest.call{value: _amount}("");
         require(success, "transfer failed");
     }
 

@@ -31,7 +31,13 @@ describe("Birdswap.setMarketplaceFeePayoutAddress", () => {
 
       expect(await birdswap.marketplaceFeePayoutAddress()).equals(newFeePayout)
     });
+  })
 
+  describe("Birdswap.setMarketplaceFeePayoutAddress(error)", async () => {
+    it("not admin", async () => {
+      const newFeePayout = buyer2.address;
+      await expect(birdswap.connect(minterA).setMarketplaceFeePayoutAddress(newFeePayout)).to.revertedWith("Ownable: caller is not the owner")
+    });
   })
 });
 

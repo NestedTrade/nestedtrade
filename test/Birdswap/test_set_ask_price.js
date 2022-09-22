@@ -37,6 +37,17 @@ describe("Birdswap.setAskPrice", () => {
 
       expect(ask.askPrice).equals(newAskPrice)
     });
+  })
 
+  describe("Birdswap.setAskPrice (error)", async () => {
+    it("increase price", async () => {
+      const newAskPrice = ethers.utils.parseEther("30");
+      await expect(birdswap.connect(minterA).setAskPrice(tokenId, newAskPrice)).to.revertedWith("setAskPrice can only be used to lower the price");
+    });
+
+    it("must be seller", async () => {
+      const newAskPrice = ethers.utils.parseEther("10");
+      await expect(birdswap.connect(minterA).setAskPrice(1, newAskPrice)).to.revertedWith("setAskPrice must be seller");
+    });
   })
 });
