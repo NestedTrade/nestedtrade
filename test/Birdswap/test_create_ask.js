@@ -64,14 +64,14 @@ describe("Birdswap.createAsk", () => {
     it("not owner of moonbirds", async () => {
       await expect(birdswap
         .connect(minterB)
-        .createAsk(tokenId, buyer.address, askPrice, royaltyBps)).to.revertedWith("caller must be token owner");
+        .createAsk(tokenId, buyer.address, askPrice, royaltyBps)).to.revertedWith("createAsk caller must be token owner");
     });
 
 
     it("invalid buyer address(0)", async () => {
       await expect(birdswap
         .connect(minterA)
-        .createAsk(tokenId, ethers.constants.AddressZero, askPrice, royaltyBps)).to.revertedWith("buyer address must be set");
+        .createAsk(tokenId, ethers.constants.AddressZero, askPrice, royaltyBps)).to.revertedWith("createAsk buyer address must be set");
     });
 
     it("invalid royalties", async () => {

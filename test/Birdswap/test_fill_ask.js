@@ -85,7 +85,7 @@ describe("BirdSwap", () => {
   describe("BirdSwap.fillAsk (Error)", async () => {
     it("not the buyer set in Ask", async () => {
       await expect(birdswap.connect(minterB).fillAsk(tokenId, {value: askPrice}))
-      .to.revertedWith("must be buyer");
+      .to.revertedWith("fillAsk must be buyer");
     });
 
     it("Ask does not exist", async () => {
@@ -102,7 +102,7 @@ describe("BirdSwap", () => {
 
     it("invalid askPrice", async () => {
       await expect(birdswap.connect(buyer).fillAsk(tokenId, {value: askPrice.sub(1)}))
-      .to.revertedWith("_handleIncomingTransfer msg value less than expected amount");
+      .to.revertedWith("fillAsk msg value not expected amount");
     });
   })
 });

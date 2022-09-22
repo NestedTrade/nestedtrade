@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.10;
 
+/// @author Montana Wong, Fabrice Cheng
 interface IBirdSwap {
     /// @notice The metadata for an ask
     /// @param seller The address of the seller placing the ask
