@@ -4,6 +4,7 @@ pragma solidity ^0.8.10;
 import "./IMoonbirds.sol";
 import "./IBirdSwap.sol";
 
+/// @author Montana Wong, Fabrice Cheng
 contract BirdSwapStore {
     IMoonbirds public moonbirds;
     /// @notice The ask for a given NFT, if one exists

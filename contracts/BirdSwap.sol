@@ -11,7 +11,7 @@ import "./IBirdSwap.sol";
 import "./BirdSwapStore.sol";
 
 /// @title A trustless marketplace to buy/sell nested Moonbirds
-/// @author Montana Wong <montanawong@gmail.com>
+/// @author Montana Wong, Fabrice Cheng
 contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IERC721ReceiverUpgradeable, OwnableUpgradeable, BirdSwapStore {
     /// @dev Allow only the seller of a specific token ID to call specific functions.
     modifier onlyTokenSeller(uint256 _tokenId) {
@@ -52,8 +52,8 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
     ) external  nonReentrant {
         require(_royaltyFeeBps <= 1000, "createAsk royalty fee basis points must be less than or equal to 10%");
         address tokenOwner = moonbirds.ownerOf(_tokenId);
-        require(msg.sender == tokenOwner, "caller must be token owner");
-        require(_buyer != address(0), "buyer address must be set");
+        require(msg.sender == tokenOwner, "createAsk caller must be token owner");
+        require(_buyer != address(0), "createAsk buyer address must be set");
 
         Ask memory ask = Ask({
             seller: tokenOwner,
@@ -102,7 +102,7 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         emit AskPriceUpdated(_tokenId, ask.seller, ask.buyer, ask.askPrice, ask.royaltyFeeBps, ask.uid);
     }
 
-    /// @notice Fills the ask for a given Moonbird, transferring the ETH/ERC-20 to the seller and Moonbird to the buyer
+    /// @notice Fills the ask for a given Moonbird, transferring the ETH to the seller and Moonbird to the buyer
     /// @param _tokenId The ID of the Moonbird token
     function fillAsk(
         uint256 _tokenId
@@ -111,9 +111,9 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
 
         require(isMoonbirdEscrowed(_tokenId), "fillAsk The Moonbird associated with this ask must be escrowed within Birdswap before a purchase can be completed");
         require(ask.seller != address(0), "fillAsk must be active ask");
-        require(ask.buyer == msg.sender, "must be buyer");
+        require(ask.buyer == msg.sender, "fillAsk must be buyer");
 
-        require(msg.value == ask.askPrice, "_handleIncomingTransfer msg value less than expected amount");
+        require(msg.value == ask.askPrice, "fillAsk msg value not expected amount");
 
         // Payout marketplace fee
         uint256 marketplaceFee = _handleMarketplaceFeePayout(ask.askPrice);
@@ -121,7 +121,7 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         // Payout respective parties, payout royalties based on configuration
         uint256 royaltyFee = _handleRoyaltyPayout(ask.askPrice, ask.royaltyFeeBps, _tokenId);
 
-        // Transfer remaining ETH/ERC-20 to seller
+        // Transfer remaining ETH to seller
         uint256 remainingProfit = msg.value - marketplaceFee - royaltyFee;
         _handleOutgoingTransfer(ask.seller, remainingProfit);
 
@@ -144,12 +144,12 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
     /// @dev The Moonbird must be transferred directly to this contract using safeTransferFromWhileNested by the owner
     /// This is because the Moonbird contract does not allow operators to transfer the NFT on the owner's behalf
     function onERC721Received(address, address from, uint256 tokenId, bytes calldata) override public returns (bytes4) {
-        require(isMoonbirdEscrowed(tokenId), "Moonbirds not transferred");
+        require(isMoonbirdEscrowed(tokenId), "onERC721Received Moonbirds not transferred");
         bool nesting;
         (nesting, ,) = moonbirds.nestingPeriod(tokenId);
-        require(nesting == true, "Moonbirds not nested");
+        require(nesting == true, "onERC721Received Moonbirds not nested");
         Ask memory ask = askForMoonbird[tokenId];
-        require(ask.seller == from, "Cannot send Nested MB without active listing.");
+        require(ask.seller == from, "onERC721Received Cannot send Nested MB without active listing.");
         moonbirdTransferredFromOwner[tokenId] = from;
         return IERC721ReceiverUpgradeable.onERC721Received.selector;
     }
@@ -213,7 +213,7 @@ contract BirdSwap is IBirdSwap, UUPSUpgradeable, ReentrancyGuardUpgradeable, IER
         // Get Moonbirds royalty payout address
         (address moonbirdsRoyaltyPayoutAddress, uint256 royaltyFee) = moonbirds.royaltyInfo(_tokenId, _amount);
 
-        require(moonbirdsRoyaltyPayoutAddress != address(0), "Royalty address not set");
+        require(moonbirdsRoyaltyPayoutAddress != address(0), "_handleRoyaltyPayout Royalty address not set");
 
         if (!enforceDefaultRoyalties) {
             // Get custom royalty fee
